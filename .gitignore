@@ -1,10 +1,16 @@
-# Environment variables
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment
 .env
 .env.local
+.env.*.local
 
-# Node modules
-node_modules/
-npm-debug.log
+# Logs
+logs/
+*.log
+npm-debug.log*
 
 # IDE
 .vscode/
@@ -16,7 +22,9 @@ npm-debug.log
 .DS_Store
 Thumbs.db
 
-# Build files
+# Build
 dist/
 build/
-*.log
+
+# Misc
+.cache/
