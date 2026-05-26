@@ -1,6 +1,7 @@
 const express = require("express");
 const mysql = require("mysql2");
 const bcrypt = require('bcrypt');
+const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
@@ -8,6 +9,7 @@ const port = process.env.DB_PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 const connection = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -55,14 +57,14 @@ app.post('/reg', async (req, res) => {
         connection.query(query, [username, email, encryptPass], (err, result) => {
             if (err) {
                 console.error(err);
-                return res.status.json({ error: "Database Insert Failed" })
+                return res.status(500).json({ error: "Database Insert Failed" })
             }
             res.json({ message: result })
         })
 
     } catch (err) {
         console.error(err);
-        return res.status.json({ error: "Server Ecountered An Error" })
+        return res.status(500).json({ error: "Server Encountered An Error" })
     }
 })
 
@@ -89,18 +91,17 @@ app.post('/login', async (req, res) => {
             if (!pass) {
                 return res.status(401).json({error: "Error Login"})
             }
-            res.json(
-                {
+            res.json({
                     message: "Login Success",
-                    result
-                }
-            )
+                    username: user.username,
+                    email: user.email
+                })
         })
 
 
     } catch (err) {
         console.error(err)
-        return res.status.json({ error: "Login Failed" })
+        return res.status(500).json({ error: "Login Failed" })
     }
 })
 
