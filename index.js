@@ -1,14 +1,17 @@
-const express = require("express");
-const mysql = require("mysql2");
-const bcrypt = require('bcrypt');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import mysql from 'mysql2';
+import bcrypt from 'bcrypt';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { expressHandler } from '@genkit-ai/express';
+import { ai, ScanUpload } from './src/genkit.js';
 
+dotenv.config();
 const app = express();
 const port = process.env.DB_PORT || 3000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cors());
 const connection = mysql.createPool({
     host: process.env.DB_HOST,
@@ -68,7 +71,7 @@ app.post('/reg', async (req, res) => {
     }
 })
 
-// User Login Entpoint
+// User Login Endpoint
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -105,10 +108,58 @@ app.post('/login', async (req, res) => {
     }
 })
 
-// Testing new Git Remote for new Repository URL
+// Scan User Uploads Endpoint (Calls Flow in genkit.ts)
+app.post('/api/scan', async (req, res) => {
+    try {
+      const { imageBase64 } = req.body;
+  
+      if (!imageBase64) {
+        return res.status(400).json({
+          success: false,
+          error: 'imageBase64 is required',
+        });
+      }
+  
+      const result = await ScanUpload(imageBase64);
+  
+      return res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error(error);
+  
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to scan upload',
+      });
+    }
+  });
+
+// Genkit AI Endpoint 
+app.post('/api/test-ai', async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        const result = await ai.generate({
+            prompt: prompt || 'Say hello and tell me you are working',
+        });
+        res.json({ 
+            success: true, 
+            response: result.text 
+        });
+    } catch (error) {
+        console.error('AI Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on port ${port}`);
 });
 
-module.exports = app;
+// module.exports = app;
+export default app;
