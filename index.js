@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { expressHandler } from '@genkit-ai/express';
+import { createWorker } from 'tesseract.js';
 import { ai, ScanUpload } from './src/genkit.js';
 
 dotenv.config();
@@ -108,19 +109,34 @@ app.post('/login', async (req, res) => {
     }
 })
 
+//Tesseract: transform image into text
+async function imageTranslate(file) {
+    const worker = await createWorker('eng');
+    const { data: { text } } = await worker.recognize(file) 
+    await worker.terminate();
+    return text;
+}
+
 // Scan User Uploads Endpoint (Calls Flow in genkit.ts)
 app.post('/api/scan', async (req, res) => {
     try {
-      const { imageBase64 } = req.body;
+      const { images } = req.body;
   
-      if (!imageBase64) {
+      if (!images) {
         return res.status(400).json({
           success: false,
           error: 'imageBase64 is required',
         });
       }
-  
-      const result = await ScanUpload(imageBase64);
+      
+      const extractedText = await imageTranslate(images)
+
+      if(!extractedText) {
+        return res.status(400).json({error: "Image not compiled"})
+      }
+      console.log(extractedText)
+      const result = extractedText;
+    //   const result = await ScanUpload(images);
   
       return res.json({
         success: true,
@@ -156,6 +172,19 @@ app.post('/api/test-ai', async (req, res) => {
     }
 });
 
+app.post('/assist', async (req, res) => {
+    try{
+        const { prompt } = req.body;
+        const response = await ai.generate({
+            prompt: `You are an personal assistant agent, respond accordingly to the user prompt: ${prompt}`
+        })
+
+        res.json(response.text)
+
+    } catch(err) {
+        res.status(500).json(err.message)
+    }
+})
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on port ${port}`);
