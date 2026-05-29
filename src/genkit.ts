@@ -3,7 +3,7 @@ import { Genkit, genkit, z } from 'genkit';
 
 export const ai: Genkit = genkit({
   plugins: [googleAI()],
-  model: googleAI.model('gemma-4-26b-a4b-it', {
+  model: googleAI.model('gemini-2.0-flash', {
     temperature: 0.8,
   }),
 });
@@ -22,8 +22,9 @@ const ReceiptSchema = z.object({
 const ReceiptResponseSchema = z.object({
   type: z.literal('receipt'),
   items: z.array(ReceiptSchema).describe('List of items from receipt'),
+  biller: z.string().describe("Company/Biller'sname "),
   currency: z.string().describe('Currency code (USD, EUR, etc)'),
-  total: z.number().describe('Total amount'),
+  total_amount: z.number().describe('Total amount'),
   date: z.string().optional().describe('Transaction date (YYYY-MM-DD)'),
   time: z.string().optional().describe('Transaction time (HH:MM:SS)'),
 });
@@ -95,17 +96,19 @@ const ScanTransaction = ai.defineFlow(
   async (imageBase64) => {
     const result = await ai.generate({
       prompt: `Analyze this payment/transaction screenshot and extract:
-        1. Sender/Payer name
-        2. Merchant/Receiver name
-        3. Transaction amount
-        4. Currency
-        5. Date and time
-        6. Transaction ID
-        7. Payment method
-        8. Status
+        1. Type
+        2. Sender/Payer name
+        3. Merchant/Receiver name
+        4. Transaction amount
+        5. Currency
+        6. Date and time
+        7. Transaction ID
+        8. Payment method
+        9. Status
         
         Return ONLY valid JSON in this format:
         { 
+          type: "transaction"
           senderName: string, 
           merchantName: string, 
           amount: number, 
@@ -137,17 +140,21 @@ const ScanReceipt = ai.defineFlow(
   async (imageBase64) => {
     const result = await ai.generate({
       prompt: `Analyze this receipt/invoice image and extract:
-        1. Item name/description
-        2. Price/amount for each item
-        3. Currency
-        4. Total amount
-        5. Date and time
+        1. Type
+        2. Item name/description
+        3. Biller
+        4. Price/amount for each item
+        5. Currency
+        6. Total amount
+        7. Date and time
         
         Return ONLY valid JSON in this format:
         { 
+          type: "receipt"
           items: [{ name: string, price: number }], 
+          biller: string,
           currency: string, 
-          total: number,
+          total_amount: number,
           date: string,
           time: string
         }

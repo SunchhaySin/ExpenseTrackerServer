@@ -93,13 +93,14 @@ app.post('/login', async (req, res) => {
             const pass = await bcrypt.compare(password, user.password)
 
             if (!pass) {
-                return res.status(401).json({error: "Error Login"})
+                return res.status(401).json({ error: "Error Login" })
             }
             res.json({
-                    message: "Login Success",
-                    username: user.username,
-                    email: user.email
-                })
+                message: "Login Success",
+                username: user.username,
+                email: user.email,
+                userID: user.userID
+            })
         })
 
 
@@ -112,7 +113,7 @@ app.post('/login', async (req, res) => {
 //Tesseract: transform image into text
 async function imageTranslate(file) {
     const worker = await createWorker('eng');
-    const { data: { text } } = await worker.recognize(file) 
+    const { data: { text } } = await worker.recognize(file)
     await worker.terminate();
     return text;
 }
@@ -120,38 +121,120 @@ async function imageTranslate(file) {
 // Scan User Uploads Endpoint (Calls Flow in genkit.ts)
 app.post('/api/scan', async (req, res) => {
     try {
-      const { images } = req.body;
-  
-      if (!images) {
-        return res.status(400).json({
-          success: false,
-          error: 'imageBase64 is required',
+        const { images } = req.body;
+
+        if (!images) {
+            return res.status(400).json({
+                success: false,
+                error: 'imageBase64 is required',
+            });
+        }
+
+        const extractedText = await imageTranslate(images)
+
+        if (!extractedText) {
+            return res.status(400).json({ error: "Image not compiled" })
+        }
+
+        //   const result = extractedText;
+        const result = await ScanUpload(extractedText);
+
+        return res.status(500).json({
+            success: true,
+            data: result,
         });
-      }
-      
-      const extractedText = await imageTranslate(images)
-
-      if(!extractedText) {
-        return res.status(400).json({error: "Image not compiled"})
-      }
-      console.log(extractedText)
-      const result = extractedText;
-    //   const result = await ScanUpload(images);
-  
-      return res.json({
-        success: true,
-        data: result,
-      });
     } catch (error) {
-      console.error(error);
-  
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to scan upload',
-      });
-    }
-  });
+        console.error(error);
 
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to scan upload',
+        });
+    }
+});
+
+// Inserting into Database Invoices Table
+app.post('/upload/invoice', async (req, res) => {
+    try {
+        const { data } = req.body
+        if (!data) {
+            res.status(400).json({ error: "No invoice found" })
+        }
+        const columns = Object.keys(data).join(', ');
+        const placeholders = Object.keys(data).map(() => '?').join(', ');
+        const dataValues = Object.values(data);
+
+        const query = `INSERT INTO Invoices (${columns}) VALUES (${placeholders})`;
+        connection.query(query, dataValues, async (err, result) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: "Database Error" })
+            }
+            if (result.affectedRows === 0) {
+                return res.status(401).json({ error: "Database Insert Failed" })
+            }
+            const response = result
+            res.json({
+                sucess: true,
+                message: "Databse Insertion Success",
+                data: response,
+            })
+        })
+    } catch (err) {
+        res.status(500).json({
+            sucess: false,
+            error: err.message
+        })
+    }
+})
+
+// Inserting into Database Receipt Table
+app.post(`/upload/receipt`, async (req, res) => {
+    try {
+        const { userID, type, items, total_amount, biller, currency, date, time } = req.body;
+
+        if (!userID || !total_amount || !biller || !currency) {
+            return res.status(400).json({ error: "No Receipt found" })
+        }
+
+        const query = `INSERT INTO Receipts (userID, type, items, total_amount, biller, currency, date, time, creadedAt)
+                         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) `
+
+        const values = [
+            userID,
+            type,
+            JSON.stringify(items), 
+            total_amount,
+            biller,
+            currency,
+            date,
+            time
+        ];
+
+        connection.query(query, values, (err, results) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: "Database Error" })
+            }
+
+            if (results.affectedRows === 0) {
+                return res.status(401).json({ error: "Database Insert Failed" })
+            }
+            const response = results
+            res.json({
+                sucess: true,
+                message: "Databse Insertion Success",
+                data: response,
+            })
+        })
+
+    } catch (err) {
+        res.status(500).json({
+            message: false,
+            error: err.message
+        })
+    }
+})
 // Genkit AI Endpoint 
 app.post('/api/test-ai', async (req, res) => {
     try {
@@ -159,21 +242,21 @@ app.post('/api/test-ai', async (req, res) => {
         const result = await ai.generate({
             prompt: prompt || 'Say hello and tell me you are working',
         });
-        res.json({ 
-            success: true, 
-            response: result.text 
+        res.json({
+            success: true,
+            response: result.text
         });
     } catch (error) {
         console.error('AI Error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 });
 
 app.post('/assist', async (req, res) => {
-    try{
+    try {
         const { prompt } = req.body;
         const response = await ai.generate({
             prompt: `You are an personal assistant agent, respond accordingly to the user prompt: ${prompt}`
@@ -181,7 +264,7 @@ app.post('/assist', async (req, res) => {
 
         res.json(response.text)
 
-    } catch(err) {
+    } catch (err) {
         res.status(500).json(err.message)
     }
 })
