@@ -3,8 +3,8 @@ import { Genkit, genkit, z } from 'genkit';
 
 export const ai: Genkit = genkit({
   plugins: [googleAI()],
-  model: googleAI.model('gemini-2.0-flash', {
-    temperature: 0.8,
+  model: googleAI.model('gemma-4-26b-a4b-it', {
+    temperature: 0.2,
   }),
 });
 

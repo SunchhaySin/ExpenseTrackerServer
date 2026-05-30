@@ -6,14 +6,24 @@ import dotenv from 'dotenv';
 import { expressHandler } from '@genkit-ai/express';
 import { createWorker } from 'tesseract.js';
 import { ai, ScanUpload } from './src/genkit.js';
+import cookieParser from 'cookie-parser';
+import jwt from 'jsonwebtoken';
+
 
 dotenv.config();
 const app = express();
 const port = process.env.DB_PORT || 3000;
+const SECRET = process.env.JWT_SECRET;
+
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+}));
+
 const connection = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -95,6 +105,21 @@ app.post('/login', async (req, res) => {
             if (!pass) {
                 return res.status(401).json({ error: "Error Login" })
             }
+
+            // create token with user data inside
+            const token = jwt.sign(
+                { userID: user.userID, username: user.username, email: user.email },
+                SECRET,
+                { expiresIn: '7d' } // token expires in 7 days
+            );
+            // set token as cookie
+            res.cookie('token', token, {
+                httpOnly: true,   // JS cannot access it
+                secure: false,    // set to true in production (HTTPS)
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days in milliseconds
+            });
+
             res.json({
                 message: "Login Success",
                 username: user.username,
@@ -109,6 +134,27 @@ app.post('/login', async (req, res) => {
         return res.status(500).json({ error: "Login Failed" })
     }
 })
+
+app.get('/auth/me', (req, res) => {
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(401).json({ error: "Not logged in" });
+    }
+
+    try {
+        const decoded = jwt.verify(token, SECRET);
+        console.log(decoded)
+        res.json({ userID: decoded.userID, username: decoded.username, email: decoded.email });
+    } catch (err) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+    }
+});
+
+app.post('/logout', (req, res) => {
+    res.clearCookie('token');
+    res.json({ success: true, message: "Logged out" });
+});
 
 //Tesseract: transform image into text
 async function imageTranslate(file) {
@@ -139,7 +185,7 @@ app.post('/api/scan', async (req, res) => {
         //   const result = extractedText;
         const result = await ScanUpload(extractedText);
 
-        return res.status(500).json({
+        return res.json({
             success: true,
             data: result,
         });
@@ -164,14 +210,14 @@ app.post('/upload/invoice', async (req, res) => {
         const placeholders = Object.keys(data).map(() => '?').join(', ');
         const dataValues = Object.values(data);
 
-        const query = `INSERT INTO Invoices (${columns}) VALUES (${placeholders})`;
+        const query = `INSERT IGNORE INTO Invoices (${columns}) VALUES (${placeholders})`;
         connection.query(query, dataValues, async (err, result) => {
             if (err) {
                 console.error(err);
                 return res.status(500).json({ error: "Database Error" })
             }
             if (result.affectedRows === 0) {
-                return res.status(401).json({ error: "Database Insert Failed" })
+                return res.status(409).json({ error: "Duplicate Invoice" })
             }
             const response = result
             res.json({
@@ -190,25 +236,26 @@ app.post('/upload/invoice', async (req, res) => {
 
 // Inserting into Database Receipt Table
 app.post(`/upload/receipt`, async (req, res) => {
+    console.log("Received:", req.body);
     try {
         const { userID, type, items, total_amount, biller, currency, date, time } = req.body;
-
-        if (!userID || !total_amount || !biller || !currency) {
+        console.log("Items:", items, typeof items);
+        if (!userID || !type || !items || !total_amount || !biller || !currency || !date || !time) {
             return res.status(400).json({ error: "No Receipt found" })
         }
 
-        const query = `INSERT INTO Receipts (userID, type, items, total_amount, biller, currency, date, time, creadedAt)
-                         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) `
+        const query = `INSERT IGNORE INTO Receipts (userID, type, items, total_amount, biller, currency, date, time)
+                         VALUES(?, ?, ?, ?, ?, ?, ?, ?) `
 
         const values = [
             userID,
             type,
-            JSON.stringify(items), 
+            JSON.stringify(items),
             total_amount,
             biller,
             currency,
             date,
-            time
+            time || null
         ];
 
         connection.query(query, values, (err, results) => {
@@ -218,7 +265,7 @@ app.post(`/upload/receipt`, async (req, res) => {
             }
 
             if (results.affectedRows === 0) {
-                return res.status(401).json({ error: "Database Insert Failed" })
+                return res.status(409).json({ error: "Duplicate Receipt" })
             }
             const response = results
             res.json({
@@ -231,6 +278,54 @@ app.post(`/upload/receipt`, async (req, res) => {
     } catch (err) {
         res.status(500).json({
             message: false,
+            error: err.message
+        })
+    }
+})
+
+app.get('/fetch/invoice/:id', async (req, res) => {
+    try{
+        const id = req.params.id
+        const query = `SELECT * FROM Invoices WHERE userID=?`
+        connection.query(query, [id], (err, result) => {
+            if(err){
+                console.error(err)
+                res.status(500).json({error: err.message})
+            }
+
+            if (result.length === 0) {
+                return res.status(404).json({ error: "No invoices found" });
+            }
+
+            res.json({success: true, data: result})
+        })
+    } catch (err){
+        res.status(500).json({
+            success: false,
+            error: err.message
+        })
+    }
+})
+
+app.get('/fetch/receipt/:id', async (req, res) => {
+    try{
+        const id = req.params.id
+        const query = `SELECT * FROM Receipts WHERE userID=?`
+        connection.query(query, [id], (err, result) => {
+            if(err){
+                console.error(err)
+                res.status(500).json({error: err.message})
+            }
+
+            if (result.length === 0) {
+                return res.status(404).json({ error: "No receipts found" });
+            }
+            
+            res.json({success: true, data: result})
+        })
+    } catch (err){
+        res.status(500).json({
+            success: false,
             error: err.message
         })
     }
