@@ -330,6 +330,44 @@ app.get('/fetch/receipt/:id', async (req, res) => {
         })
     }
 })
+
+// Delete Uploads by id 
+app.delete('/delete/invoice/:userID/:uploadID', async (req, res) => {
+    try {
+        const { userID, uploadID } = req.params;
+        const query = 'DELETE FROM Invoices WHERE userID = ? AND uploadID = ?';
+        const result = connection.query(query, [userID, uploadID]);
+
+        return res.json({
+            success: true,
+            data: result
+        });
+    } catch (err) {
+        return res.status(500).json({
+            message: "Deletion Failed",
+            error: err.message
+        });
+    }
+});
+
+app.delete('/delete/receipt/:userID/:uploadID', async (req, res) => {
+    try {
+        const { userID, uploadID } = req.params;
+        const query = 'DELETE FROM Receipts WHERE userID = ? AND receiptID = ?';
+        const result = connection.query(query, [userID, uploadID]);
+        
+        return res.json({
+            success: true,
+            data: result,
+        });
+        
+    } catch (err) {
+        return res.status(500).json({
+            message: "Deletion Failed",
+            error: err.message
+        });
+    }
+});
 // Genkit AI Endpoint 
 app.post('/api/test-ai', async (req, res) => {
     try {
