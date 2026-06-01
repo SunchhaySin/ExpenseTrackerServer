@@ -20,7 +20,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: process.env.FRONTEND_URL,
     credentials: true,
 }));
 
@@ -93,6 +93,7 @@ app.post('/login', async (req, res) => {
         connection.query(query, [email], async (err, result) => {
             if (err) {
                 console.error(err);
+                console.log(err)
                 return res.status(500).json({ error: "Database " })
             }
 
