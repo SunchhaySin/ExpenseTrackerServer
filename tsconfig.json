@@ -4,7 +4,7 @@
     "module": "esnext",
     "target": "esnext",
     "moduleResolution": "bundler",
-    
+    "outDir": "./dist",
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
@@ -23,5 +23,5 @@
     "resolveJsonModule": true,
   },
   "include": ["src/**/*", "index.ts", "src/index.ts", "index.js", "genkit.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist"]
 }
