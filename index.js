@@ -116,8 +116,8 @@ app.post('/login', async (req, res) => {
             // set token as cookie
             res.cookie('token', token, {
                 httpOnly: true,   // JS cannot access it
-                secure: false,    // set to true in production (HTTPS)
-                sameSite: 'lax',
+                secure: true,    // set to true in production (HTTPS)
+                sameSite: 'none',
                 maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days in milliseconds
             });
 
@@ -153,7 +153,11 @@ app.get('/auth/me', (req, res) => {
 });
 
 app.post('/logout', (req, res) => {
-    res.clearCookie('token');
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none'
+    });
     res.json({ success: true, message: "Logged out" });
 });
 
