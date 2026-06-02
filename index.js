@@ -5,7 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { expressHandler } from '@genkit-ai/express';
 import { createWorker } from 'tesseract.js';
-import { ai, ScanUpload } from './genkit.js';
+import { ai, ScanUpload } from './dist/genkit.js';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 
