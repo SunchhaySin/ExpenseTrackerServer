@@ -5,7 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { expressHandler } from '@genkit-ai/express';
 import { createWorker } from 'tesseract.js';
-import { ai, ScanUpload } from './dist/genkit.js';
+import { ai, ScanUpload } from './genkit.js';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 
@@ -19,8 +19,22 @@ const SECRET = process.env.JWT_SECRET;
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
+
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+];
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:5173');
+}
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`CORS blocked: ${origin}`));
+        }
+    },
     credentials: true,
 }));
 
