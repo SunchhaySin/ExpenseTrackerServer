@@ -2,7 +2,7 @@ import { googleAI } from '@genkit-ai/google-genai';
 import { Genkit, genkit, z } from 'genkit';
 
 export const ai: Genkit = genkit({
-  plugins: [googleAI()],
+  plugins: [googleAI()], // Fallback to geting the apikey from environment variable
   model: googleAI.model('gemma-4-26b-a4b-it', {
     temperature: 0.2,
   }),
