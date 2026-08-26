@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
     // Environment Settings
-    "module": "esnext",
+    "module": "NodeNext",
     "target": "esnext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "NodeNext",
     "outDir": "./dist",
+    "rootDir": "./src",
+    "allowJs": true,
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
@@ -22,6 +24,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
   },
-  "include": ["src/**/*", "index.ts", "src/index.ts", "index.js", "genkit.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
