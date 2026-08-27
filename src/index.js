@@ -1,5 +1,5 @@
 import express from "express";
-import mysql from "mysql2/promise";
+import mysql from "mysql2";
 import bcrypt from "bcrypt";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -49,6 +49,9 @@ const connection = mysql.createPool({
       ? { minVersion: "TLSv1.2", rejectUnauthorized: true }
       : undefined,
 });
+
+// Establishes a connection that returns a promise for transactional requests
+const connectionPromise = connection.promise();
 
 // Server Test Endpoint
 app.get("/", (req, res) => {
@@ -231,7 +234,7 @@ app.post("/save/uploads", async (req, res) => {
   const uploads = Array.isArray(data) ? data : [data];
   const results = [];
 
-  const conn = await connection.getConnection();
+  const conn = await connectionPromise.getConnection();
   try {
     await conn.beginTransaction();
 
@@ -313,70 +316,12 @@ app.post("/save/uploads", async (req, res) => {
   }
 });
 
-// // Inserting into Database Receipt Table
-// app.post(`/upload/receipt`, async (req, res) => {
-//   console.log("Received:", req.body);
-//   try {
-//     const { userID, type, items, total_amount, biller, currency, date, time } =
-//       req.body;
-//     console.log("Items:", items, typeof items);
-//     if (
-//       !userID ||
-//       !type ||
-//       !items ||
-//       !total_amount ||
-//       !biller ||
-//       !currency ||
-//       !date ||
-//       !time
-//     ) {
-//       return res.status(400).json({ error: "No Receipt found" });
-//     }
-
-//     const query = `INSERT IGNORE INTO Receipts (userID, type, items, total_amount, biller, currency, date, time)
-//                          VALUES(?, ?, ?, ?, ?, ?, ?, ?) `;
-
-//     const values = [
-//       userID,
-//       type,
-//       JSON.stringify(items),
-//       total_amount,
-//       biller,
-//       currency,
-//       date,
-//       time || null,
-//     ];
-
-//     connection.query(query, values, (err, results) => {
-//       if (err) {
-//         console.error(err);
-//         return res.status(500).json({ error: "Database Error" });
-//       }
-
-//       if (results.affectedRows === 0) {
-//         return res.status(409).json({ error: "Duplicate Receipt" });
-//       }
-//       const response = results;
-//       res.json({
-//         sucess: true,
-//         message: "Databse Insertion Success",
-//         data: response,
-//       });
-//     });
-//   } catch (err) {
-//     res.status(500).json({
-//       message: false,
-//       error: err.message,
-//     });
-//   }
-// });
-
 // Fetch all uploads by userId, with their associated images
 app.get("/fetch/upload/:id", async (req, res) => {
   try {
     const id = req.params.id;
 
-    const [uploads] = await connection.query(
+    const [uploads] = await connectionPromise.query(
       `SELECT * FROM Uploads WHERE userID = ? ORDER BY transaction_date DESC`,
       [id],
     );
@@ -387,27 +332,28 @@ app.get("/fetch/upload/:id", async (req, res) => {
 
     const uploadIDs = uploads.map((u) => u.id);
 
-    const [images] = await connection.query(
+    const [images] = await connectionPromise.query(
       `SELECT id, uploadID, mime_type, image_data FROM Uploaded_Images WHERE uploadID IN (?)`,
       [uploadIDs],
     );
+    
+    // Match Image to uploaded file
+    const uploadedImage = {};
 
-    // Group images by uploadID
-    const imagesByUpload = {};
     for (const img of images) {
-      if (!imagesByUpload[img.uploadID]) imagesByUpload[img.uploadID] = [];
-      imagesByUpload[img.uploadID].push({
+     uploadedImage[img.uploadID] = {
         id: img.id,
         mimeType: img.mime_type,
         image: `data:${img.mime_type};base64,${img.image_data.toString("base64")}`,
-      });
+      };
     }
 
     const data = uploads.map((upload) => ({
       ...upload,
       items: typeof upload.items === "string" ? JSON.parse(upload.items) : upload.items,
-      images: imagesByUpload[upload.id] ?? [],
+      image: uploadedImage[upload.id] ?? null,
     }));
+
 
     return res.json({ success: true, data });
   } catch (err) {
