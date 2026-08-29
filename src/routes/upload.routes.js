@@ -5,12 +5,14 @@ const router = express.Router();
 
 // Inserting uploads into Database Table
 router.post("/save/uploads", async (req, res) => {
-  const { data, userID } = req.body;
-  if (!data || !userID) {
-    return res.status(400).json({ error: "Missing Upload Data or User ID" });
+  const { uploadItems  } = req.body;
+  const userID = req.user.userID;
+
+  if (!uploadItems) {
+    return res.status(400).json({ error: "Missing Upload Data" });
   }
 
-  const uploads = Array.isArray(data) ? data : [data];
+  const uploads = Array.isArray(uploadItems) ? uploadItems : [uploadItems];
   const results = [];
 
   const conn = await connectionPromise.getConnection();
@@ -80,7 +82,7 @@ router.post("/save/uploads", async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Batch Insertion Complete",
+      message: "Uploaded Scanned and Saved Successfully",
       data: results,
     });
   } catch (err) {
@@ -96,13 +98,13 @@ router.post("/save/uploads", async (req, res) => {
 });
 
 // Fetch all uploads by userId, with their associated images
-router.get("/fetch/upload/:id", async (req, res) => {
+router.get("/fetch/upload", async (req, res) => {
   try {
-    const id = req.params.id;
+    const userId = req.user.userID;
 
     const [uploads] = await connectionPromise.query(
       `SELECT * FROM Uploads WHERE userID = ? ORDER BY transaction_date DESC`,
-      [id],
+      [userId],
     );
 
     if (uploads.length === 0) {
