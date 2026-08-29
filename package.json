@@ -4,14 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx watch src/index.js",
+    "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
+  "type": "commonjs",
   "dependencies": {
     "@genkit-ai/express": "^1.35.0",
     "@genkit-ai/google-genai": "^1.35.0",

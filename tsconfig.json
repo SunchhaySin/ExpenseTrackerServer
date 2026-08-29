@@ -1,16 +1,16 @@
 {
   "compilerOptions": {
     // Environment Settings
-    "module": "NodeNext",
+    "module": "commonjs",
     "target": "esnext",
-    "moduleResolution": "NodeNext",
     "outDir": "./dist",
     "rootDir": "./src",
     "allowJs": true,
+    "checkJs": false,
+
     // Other Outputs
     "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
@@ -18,8 +18,6 @@
 
     // Recommended Options
     "strict": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
