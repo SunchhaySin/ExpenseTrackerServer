@@ -1,12 +1,40 @@
 import express from "express";
 import { createWorker } from "tesseract.js";
 import { ai, ScanUpload } from "../genkit";
+import sharp from "sharp";
 
 const router = express.Router();
 
-async function imageTranslate(file) {
+// Extracts mime type + raw base64 payload from a data URL string
+function parseDataUrl(dataUrl) {
+  const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+  if (!match) {
+    // no data URL prefix — assume it's already raw base64 with unknown type
+    return { mimeType: null, base64: dataUrl };
+  }
+  return { mimeType: match[1], base64: match[2] };
+}
+
+// Converts HEIC/HEIF buffers to JPEG; passes through everything else unchanged
+async function normalizeImageBuffer(buffer, mimeType) {
+  const isHeic = mimeType === "image/heic" || mimeType === "image/heif";
+  if (!isHeic) return buffer;
+
+  try {
+    return await sharp(buffer).jpeg({ quality: 90 }).toBuffer();
+  } catch (err) {
+    console.error("HEIC conversion failed:", err);
+    throw new Error(
+      "Unable to process this image format. Please try a JPEG or PNG.",
+    );
+  }
+}
+
+async function imageToText(buffer) {
   const worker = await createWorker("eng");
-  const { data: { text }} = await worker.recognize(file);
+  const {
+    data: { text },
+  } = await worker.recognize(buffer);
   await worker.terminate();
   return text;
 }
@@ -23,7 +51,20 @@ router.post("/api/scan", async (req, res) => {
       });
     }
 
-    const extractedText = await imageTranslate(images);
+    const { mimeType, base64 } = parseDataUrl(images);
+    const rawBuffer = Buffer.from(base64, "base64");
+
+    let normalizedBuffer;
+    try {
+      normalizedBuffer = await normalizeImageBuffer(rawBuffer, mimeType);
+    } catch (conversionErr) {
+      return res.status(400).json({
+        success: false,
+        error: conversionErr.message,
+      });
+    }
+
+    const extractedText = await imageToText(normalizedBuffer);
 
     if (!extractedText) {
       return res.status(400).json({ error: "Image not compiled" });
@@ -45,7 +86,6 @@ router.post("/api/scan", async (req, res) => {
     });
   }
 });
-
 
 // Developmental Genkit AI Endpoint (Non-production)
 router.post("/api/test-ai", async (req, res) => {
@@ -80,4 +120,4 @@ router.post("/assist", async (req, res) => {
   }
 });
 
-export default router
+export default router;
