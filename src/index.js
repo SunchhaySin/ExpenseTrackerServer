@@ -19,7 +19,7 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  "ai-expense-tracker-git-authheaderstest-sunchhaysins-projects.vercel.app",
+  "https://ai-expense-tracker-git-authheaderstest-sunchhaysins-projects.vercel.app",
 ];
 if (process.env.NODE_ENV !== "production") {
   allowedOrigins.push("http://localhost:5173");
