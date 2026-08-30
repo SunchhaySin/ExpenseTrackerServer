@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
 
 export default function verifyToken(req, res, next) {
-  const token = req.cookies?.token;
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
   if (!token) return res.status(401).json({ error: "Not logged in" });
 
   try {

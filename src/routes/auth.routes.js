@@ -60,19 +60,13 @@ router.post("/login", async (req, res) => {
         SECRET,
         { expiresIn: "7d" }, // token expires in 7 days
       );
-      // set token as cookie
-      res.cookie("token", token, {
-        httpOnly: true, // JS cannot access it
-        secure: true, // set to true in production (HTTPS)
-        sameSite: "none",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-      });
 
       res.json({
         message: "Login Success",
         username: user.username,
         email: user.email,
         userID: user.userID,
+        token,
       });
     });
   } catch (err) {
@@ -82,7 +76,8 @@ router.post("/login", async (req, res) => {
 });
 
 router.get("/auth/me", (req, res) => {
-  const token = req.cookies.token;
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 
   if (!token) {
     return res.status(401).json({ error: "Not logged in" });
