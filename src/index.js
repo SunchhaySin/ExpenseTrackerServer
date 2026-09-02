@@ -7,6 +7,7 @@ import verifyToken from "./middleware/verifyToken.js";
 import authRoutes from "./routes/auth.routes.js";
 import uploadsRoutes from "./routes/upload.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
+import profileRoutes from "./routes/profile.routes.js";
 
 
 
@@ -48,6 +49,7 @@ app.get("/", (req, res) => {
 app.use(verifyToken);
 app.use(uploadsRoutes);
 app.use(aiRoutes);
+app.use(profileRoutes);
 
 
 app.listen(port, "0.0.0.0", () => {
