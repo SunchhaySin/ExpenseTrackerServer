@@ -17,10 +17,8 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "https://ai-expense-tracker-git-authheaderstest-sunchhaysins-projects.vercel.app",
-];
+const allowedOrigins = [process.env.FRONTEND_URL];
+
 if (process.env.NODE_ENV !== "production") {
   allowedOrigins.push("http://localhost:5173");
 }
